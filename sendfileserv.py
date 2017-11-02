@@ -49,7 +49,7 @@ def recvAll(sock, numBytes):
 	
 	return recvBuff
 		
-def putFile(clientSock):
+def getFile(clientSock):
 	fileNameSize = recvAll(clientSock, 10)
 	fileName = recvAll(clientSock, int(fileNameSize))
 	print 'file name size: ' + fileNameSize + '\n'
@@ -85,12 +85,9 @@ def putFile(clientSock):
 		f.write(fileData)
 
 #send to client
-def getFile(clientSock):
-	print 'here'
+def sendFile(clientSock):
 	fileNameSize = recvAll(clientSock, 10)
-	print 'here'
 	fileName = recvAll(clientSock, int(fileNameSize))
-	print 'here'
 	print 'file name size: ' + fileNameSize + '\n'
 	print 'file name : ' + fileName + '\n'
 	
@@ -98,26 +95,19 @@ def getFile(clientSock):
 
 	# Read 65536 bytes of data
 	fileData = fileObj.read(65536)
-
+	print fileData
 	# Make sure we did not hit EOF
 	if fileData:
-		fileNameSize = str(len(fileName))
-		#fixed length header indicating file name size
-
-		
-		connSock.send(fileNameSize + fileName)
 
 		# Get the size of the data read
 		# and convert it to string
 		dataSizeStr = str(len(fileData))
 		print 'data size:' + dataSizeStr
 
-
 		# Prepend 0's to the size string
 		# until the size is 10 bytes
 		while len(dataSizeStr) < 10:
 			dataSizeStr = "0" + dataSizeStr
-
 
 		# Prepend the size of the data to the
 		# file data.
@@ -128,7 +118,7 @@ def getFile(clientSock):
 
 		# Send the data!
 		while len(fileData) > numSent:
-			numSent += connSock.send(fileData[numSent:])
+			numSent += clientSock.send(fileData[numSent:])
 
 	# The file has been read. We are done
 	else:
@@ -148,10 +138,10 @@ while True:
 	cmd = clientSock.recv(3)
 	print 'cmd: ' + cmd + '\n'
 	if cmd == 'put':
-		putFile(clientSock)
+		getFile(clientSock)
 		#putFile needs to have its own connection/teardown
 	if cmd == 'get':
-		getFile(clientSock)
+		sendFile(clientSock)
 	if cmd == ' ls':
 		printDir()
 	# Close our side

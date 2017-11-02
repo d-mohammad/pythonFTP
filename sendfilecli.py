@@ -35,6 +35,38 @@ numSent = 0
 # The file data
 fileData = None
 
+
+	
+# ************************************************
+# Receives the specified number of bytes
+# from the specified socket
+# @param sock - the socket from which to receive
+# @param numBytes - the number of bytes to receive
+# @return - the bytes received
+# *************************************************
+def recvAll(sock, numBytes):
+
+	# The buffer
+	recvBuff = ""
+	
+	# The temporary buffer
+	tmpBuff = ""
+	
+	# Keep receiving till all is received
+	while len(recvBuff) < numBytes:
+		
+		# Attempt to receive bytes
+		tmpBuff =  sock.recv(numBytes)
+		
+		# The other side has closed the socket
+		if not tmpBuff:
+			break
+		
+		# Add the received bytes to the buffer
+		recvBuff += tmpBuff
+	
+	return recvBuff
+
 def sendFile(connSock, splitInput):
 	fileName = splitInput[1]
 	fileObj = open(fileName, "r")
@@ -82,10 +114,38 @@ def getFile(connSock, splitInput):
 	fileName = splitInput[1]
 	fileNameSize = str(len(fileName))
 	#send fixed length file name message
+	print 'here'
 	while len(fileNameSize) < 10:
 		fileNameSize = "0" + fileNameSize
 	connSock.send(fileNameSize + fileName)
 
+	fileData = ""
+	print 'here'
+	# The temporary buffer to store the received
+	# data.
+	recvBuff = ""
+
+	# The size of the incoming file
+	fileSize = 0	
+
+	# The buffer containing the file size
+	fileSizeBuff = ""
+
+	# Receive the first 10 bytes indicating the
+	# size of the file
+	print 'here3'
+	fileSizeBuff = recvAll(connSock, 10)
+
+	# Get the file size
+	fileSize = int(fileSizeBuff)
+
+	print "The file size is " , fileSize
+
+	# Get the file data
+	fileData = recvAll(connSock, fileSize)
+	print 'file data: ' + fileData + '\n'
+	with open(fileName,'w') as f:
+		f.write(fileData)
 	#send file name
 	#receive data and shit
 
@@ -107,7 +167,4 @@ print "Sent ", numSent, " bytes."
 	
 # Close the socket and the file
 connSock.close()
-
-	
-
 
