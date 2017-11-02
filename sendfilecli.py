@@ -11,19 +11,17 @@ import sys
 
 # Command line checks 
 if len(sys.argv) < 2:
-	print "USAGE python " + sys.argv[0] + " <FILE NAME>" 
+	print "USAGE python " + sys.argv[0] + " <PORT_NUMBER>" 
 
 # Server address
 serverAddr = "localhost"
 
 # Server port
-serverPort = 1234
+serverPort = int(sys.argv[1])
 
 # The name of the file
-fileName = sys.argv[1]
 
 # Open the file
-fileObj = open(fileName, "r")
 
 # Create a TCP socket
 connSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -37,22 +35,21 @@ numSent = 0
 # The file data
 fileData = None
 
-# Keep sending until all is sent
-while True:
-	
+def sendFile(connSock, splitInput):
+	fileName = splitInput[1]
+	fileObj = open(fileName, "r")
+
 	# Read 65536 bytes of data
 	fileData = fileObj.read(65536)
-	
+
 	# Make sure we did not hit EOF
 	if fileData:
 		fileNameSize = str(len(fileName))
 		#fixed length header indicating file name size
 		while len(fileNameSize) < 10:
 			fileNameSize = "0" + fileNameSize
-
-		print 'file name size: ' + fileNameSize + '\n'
-		connSock.send(fileNameSize)
-		connSock.send(fileName)
+		
+		connSock.send(fileNameSize + fileName)
 
 		# Get the size of the data read
 		# and convert it to string
@@ -64,29 +61,41 @@ while True:
 		# until the size is 10 bytes
 		while len(dataSizeStr) < 10:
 			dataSizeStr = "0" + dataSizeStr
-	
-	
+
+
 		# Prepend the size of the data to the
 		# file data.
 		fileData = dataSizeStr + fileData	
-		
+
 		# The number of bytes sent
 		numSent = 0		
 
 		# Send the data!
 		while len(fileData) > numSent:
 			numSent += connSock.send(fileData[numSent:])
-	
+
 	# The file has been read. We are done
 	else:
-		break
+		fileObj.close()
 
+
+# Keep sending until all is sent
+while True:
+	userInput = raw_input("\nWaiting for command...\n")
+	splitInput = userInput.split()
+	cmd = splitInput[0]
+	connSock.send(cmd)
+
+	if cmd == 'put':
+		sendFile(connSock, splitInput)
+	elif cmd == 'quit':
+		break
 
 print "Sent ", numSent, " bytes."
 	
 # Close the socket and the file
 connSock.close()
-fileObj.close()
+
 	
 
 

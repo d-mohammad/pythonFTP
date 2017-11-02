@@ -49,6 +49,90 @@ def recvAll(sock, numBytes):
 	
 	return recvBuff
 		
+def putFile(clientSock):
+	fileNameSize = recvAll(clientSock, 10)
+	fileName = clientSock.recv(int(fileNameSize))
+	print 'file name size: ' + fileNameSize + '\n'
+	print 'file name : ' + fileName + '\n'
+
+	# The buffer to all data received from the
+	# the client.
+	fileData = ""
+
+	# The temporary buffer to store the received
+	# data.
+	recvBuff = ""
+
+	# The size of the incoming file
+	fileSize = 0	
+
+	# The buffer containing the file size
+	fileSizeBuff = ""
+
+	# Receive the first 10 bytes indicating the
+	# size of the file
+	fileSizeBuff = recvAll(clientSock, 10)
+
+	# Get the file size
+	fileSize = int(fileSizeBuff)
+
+	print "The file size is " , fileSize
+
+	# Get the file data
+	fileData = recvAll(clientSock, fileSize)
+
+	with open(fileName,'w') as f:
+		f.write(fileData)
+
+#send to client
+def getFile(clientSock):
+	fileNameSize = recvAll(clientSock, 10)
+	fileName = clientSock.recv(int(fileNameSize))
+	print 'file name size: ' + fileNameSize + '\n'
+	print 'file name : ' + fileName + '\n'
+	
+
+	fileName = splitInput[1]
+	fileObj = open(fileName, "r")
+
+	# Read 65536 bytes of data
+	fileData = fileObj.read(65536)
+
+	# Make sure we did not hit EOF
+	if fileData:
+		fileNameSize = str(len(fileName))
+		#fixed length header indicating file name size
+
+		
+		connSock.send(fileNameSize + fileName)
+
+		# Get the size of the data read
+		# and convert it to string
+		dataSizeStr = str(len(fileData))
+		print 'data size:' + dataSizeStr
+
+
+		# Prepend 0's to the size string
+		# until the size is 10 bytes
+		while len(dataSizeStr) < 10:
+			dataSizeStr = "0" + dataSizeStr
+
+
+		# Prepend the size of the data to the
+		# file data.
+		fileData = dataSizeStr + fileData	
+
+		# The number of bytes sent
+		numSent = 0		
+
+		# Send the data!
+		while len(fileData) > numSent:
+			numSent += connSock.send(fileData[numSent:])
+
+	# The file has been read. We are done
+	else:
+		fileObj.close()
+
 # Accept connections forever
 while True:
 	
@@ -59,42 +143,15 @@ while True:
 	
 	print "Accepted connection from client: ", addr
 	print "\n"
-	fileNameSize = recvAll(clientSock, 10)
-	print 'file name size: ' + fileNameSize + '\n'
-
-	fileNameStr = clientSock.recv(int(fileNameSize))
-	# The buffer to all data received from the
-	# the client.
-	fileData = ""
-	
-	# The temporary buffer to store the received
-	# data.
-	recvBuff = ""
-	
-	# The size of the incoming file
-	fileSize = 0	
-	
-	# The buffer containing the file size
-	fileSizeBuff = ""
-	
-	# Receive the first 10 bytes indicating the
-	# size of the file
-	fileSizeBuff = recvAll(clientSock, 10)
-		
-	# Get the file size
-	fileSize = int(fileSizeBuff)
-	
-	print "The file size is ", fileSize
-	
-	# Get the file data
-	fileData = recvAll(clientSock, fileSize)
-	
-	with open(fileNameStr,'w') as f:
-		f.write(fileData)
-
-	print "The file data is: "
-	print fileData
-		
+	#receive command of length 3 ' ls', 'put', 'get'
+	cmd = clientSock.recv(3)
+	print 'cmd: ' + cmd + '\n'
+	if cmd == 'put':
+		putFile(clientSock)
+		#putFile needs to have its own connection/teardown
+	if cmd == 'get':
+		getFile()
+	if cmd == ' ls':
+		printDir()
 	# Close our side
-	clientSock.close()
 	
