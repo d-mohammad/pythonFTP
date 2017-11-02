@@ -78,6 +78,16 @@ def sendFile(connSock, splitInput):
 	else:
 		fileObj.close()
 
+def getFile(connSock, splitInput):
+	fileName = splitInput[1]
+	fileNameSize = str(len(fileName))
+	#send fixed length file name message
+	while len(fileNameSize) < 10:
+		fileNameSize = "0" + fileNameSize
+	connSock.send(fileNameSize + fileName)
+
+	#send file name
+	#receive data and shit
 
 # Keep sending until all is sent
 while True:
@@ -88,6 +98,8 @@ while True:
 
 	if cmd == 'put':
 		sendFile(connSock, splitInput)
+	if cmd == 'get':
+		getFile(connSock, splitInput)
 	elif cmd == 'quit':
 		break
 

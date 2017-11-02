@@ -51,7 +51,7 @@ def recvAll(sock, numBytes):
 		
 def putFile(clientSock):
 	fileNameSize = recvAll(clientSock, 10)
-	fileName = clientSock.recv(int(fileNameSize))
+	fileName = recvAll(clientSock, int(fileNameSize))
 	print 'file name size: ' + fileNameSize + '\n'
 	print 'file name : ' + fileName + '\n'
 
@@ -86,13 +86,14 @@ def putFile(clientSock):
 
 #send to client
 def getFile(clientSock):
+	print 'here'
 	fileNameSize = recvAll(clientSock, 10)
-	fileName = clientSock.recv(int(fileNameSize))
+	print 'here'
+	fileName = recvAll(clientSock, int(fileNameSize))
+	print 'here'
 	print 'file name size: ' + fileNameSize + '\n'
 	print 'file name : ' + fileName + '\n'
 	
-
-	fileName = splitInput[1]
 	fileObj = open(fileName, "r")
 
 	# Read 65536 bytes of data
@@ -150,7 +151,7 @@ while True:
 		putFile(clientSock)
 		#putFile needs to have its own connection/teardown
 	if cmd == 'get':
-		getFile()
+		getFile(clientSock)
 	if cmd == ' ls':
 		printDir()
 	# Close our side
