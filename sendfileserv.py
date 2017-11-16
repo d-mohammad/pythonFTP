@@ -6,7 +6,7 @@
 # *****************************************************
 
 import socket
-
+import commands
 # The port on which to listen
 listenPort = 1234
 
@@ -49,9 +49,11 @@ def recvAll(sock, numBytes):
 	
 	return recvBuff
 		
-def getFile(clientSock):
-	fileNameSize = recvAll(clientSock, 10)
-	fileName = recvAll(clientSock, int(fileNameSize))
+def getFile():
+	newSock, addr = welcomeSock.accept()
+
+	fileNameSize = recvAll(newSock, 10)
+	fileName = recvAll(newSock, int(fileNameSize))
 	print 'file name size: ' + fileNameSize + '\n'
 	print 'file name : ' + fileName + '\n'
 
@@ -71,7 +73,7 @@ def getFile(clientSock):
 
 	# Receive the first 10 bytes indicating the
 	# size of the file
-	fileSizeBuff = recvAll(clientSock, 10)
+	fileSizeBuff = recvAll(newSock, 10)
 
 	# Get the file size
 	fileSize = int(fileSizeBuff)
@@ -79,15 +81,18 @@ def getFile(clientSock):
 	print "The file size is " , fileSize
 
 	# Get the file data
-	fileData = recvAll(clientSock, fileSize)
+	fileData = recvAll(newSock, fileSize)
 
 	with open(fileName,'w') as f:
 		f.write(fileData)
 
+
 #send to client
-def sendFile(clientSock):
-	fileNameSize = recvAll(clientSock, 10)
-	fileName = recvAll(clientSock, int(fileNameSize))
+def sendFile():
+	newSock, addr = welcomeSock.accept()
+
+	fileNameSize = recvAll(newSock, 10)
+	fileName = recvAll(newSock, int(fileNameSize))
 	print 'file name size: ' + fileNameSize + '\n'
 	print 'file name : ' + fileName + '\n'
 	
@@ -95,7 +100,7 @@ def sendFile(clientSock):
 
 	# Read 65536 bytes of data
 	fileData = fileObj.read(65536)
-	print fileData
+
 	# Make sure we did not hit EOF
 	if fileData:
 
@@ -118,31 +123,50 @@ def sendFile(clientSock):
 
 		# Send the data!
 		while len(fileData) > numSent:
-			numSent += clientSock.send(fileData[numSent:])
+			numSent += newSock.send(fileData[numSent:])
 
 	# The file has been read. We are done
 	else:
 		fileObj.close()
+		newSock.close()
 
+def printDir():
+	newSock, addr = welcomeSock.accept()
+	files = commands.getstatusoutput('ls -l')
+	numFiles = str(len(files))
+
+	while numFiles < 10:
+		numFiles = '0' + numFiles
+
+	newSock.send(numFiles)
+
+	for curr in files:
+		newSock.sendall(str(curr))
+
+	newSock.close()
 # Accept connections forever
 while True:
-	
 	print "Waiting for connections..."
 		
 	# Accept connections
 	clientSock, addr = welcomeSock.accept()
-	
+
 	print "Accepted connection from client: ", addr
-	print "\n"
-	#receive command of length 3 ' ls', 'put', 'get'
-	cmd = clientSock.recv(3)
-	print 'cmd: ' + cmd + '\n'
-	if cmd == 'put':
-		getFile(clientSock)
-		#putFile needs to have its own connection/teardown
-	if cmd == 'get':
-		sendFile(clientSock)
-	if cmd == ' ls':
-		printDir()
-	# Close our side
-	
+
+	#if client process killed, results in infinite loop - find way to fix
+	while True:
+		print "Waiting for command..."
+		#receive command of length 4 '  ls', ' put', ' get', 'quit'
+		cmd = clientSock.recv(4)
+		print 'cmd: ' + cmd + '\n'
+		if cmd == ' put':
+			getFile()
+			#putFile needs to have its own connection/teardown
+		elif cmd == ' get':
+			sendFile()
+		elif cmd == '  ls':
+			printDir()
+		elif cmd == 'quit':
+			clientSock.close()
+			break
+		# Close our side

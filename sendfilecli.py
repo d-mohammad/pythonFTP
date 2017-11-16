@@ -8,6 +8,7 @@
 import socket
 import os
 import sys
+import signal
 
 # Command line checks 
 if len(sys.argv) < 2:
@@ -35,8 +36,10 @@ numSent = 0
 # The file data
 fileData = None
 
-
-	
+def handler(signum, frame):
+	connSock.send('quit')
+	connSock.close()
+	exit()
 # ************************************************
 # Receives the specified number of bytes
 # from the specified socket
@@ -67,7 +70,10 @@ def recvAll(sock, numBytes):
 	
 	return recvBuff
 
-def sendFile(connSock, splitInput):
+def sendFile(splitInput):
+	newSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	newSock.connect((serverAddr, serverPort))
+
 	fileName = splitInput[1]
 	fileObj = open(fileName, "r")
 
@@ -81,7 +87,7 @@ def sendFile(connSock, splitInput):
 		while len(fileNameSize) < 10:
 			fileNameSize = "0" + fileNameSize
 		
-		connSock.send(fileNameSize + fileName)
+		newSock.send(fileNameSize + fileName)
 
 		# Get the size of the data read
 		# and convert it to string
@@ -104,23 +110,27 @@ def sendFile(connSock, splitInput):
 
 		# Send the data!
 		while len(fileData) > numSent:
-			numSent += connSock.send(fileData[numSent:])
+			numSent += newSock.send(fileData[numSent:])
 
 	# The file has been read. We are done
 	else:
 		fileObj.close()
+		newSock.close()
 
-def getFile(connSock, splitInput):
+def getFile(splitInput):
+	newSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	newSock.connect((serverAddr, serverPort))
+	
 	fileName = splitInput[1]
 	fileNameSize = str(len(fileName))
 	#send fixed length file name message
-	print 'here'
+
 	while len(fileNameSize) < 10:
 		fileNameSize = "0" + fileNameSize
-	connSock.send(fileNameSize + fileName)
+	newSock.send(fileNameSize + fileName)
 
 	fileData = ""
-	print 'here'
+
 	# The temporary buffer to store the received
 	# data.
 	recvBuff = ""
@@ -133,8 +143,8 @@ def getFile(connSock, splitInput):
 
 	# Receive the first 10 bytes indicating the
 	# size of the file
-	print 'here3'
-	fileSizeBuff = recvAll(connSock, 10)
+
+	fileSizeBuff = recvAll(newSock, 10)
 
 	# Get the file size
 	fileSize = int(fileSizeBuff)
@@ -142,24 +152,46 @@ def getFile(connSock, splitInput):
 	print "The file size is " , fileSize
 
 	# Get the file data
-	fileData = recvAll(connSock, fileSize)
-	print 'file data: ' + fileData + '\n'
+	fileData = recvAll(newSock, fileSize)
 	with open(fileName,'w') as f:
 		f.write(fileData)
+
+	newSock.close()
 	#send file name
 	#receive data and shit
 
+def listFiles():
+	newSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	newSock.connect((serverAddr, serverPort))
+	data = newSock.recv(10)
+
+	print 'data:   ' + data + '\n'
+	for i in range (0,int(data)):
+		print newSock.recv(1024),
+	newSock.close()
+
 # Keep sending until all is sent
 while True:
+	#will send quit command to server in order to disconnect socket
+	#stops loop on server side if closed before sending proper signal
+	signal.signal(signal.SIGINT, handler)
+
 	userInput = raw_input("\nWaiting for command...\n")
 	splitInput = userInput.split()
 	cmd = splitInput[0]
-	connSock.send(cmd)
 
-	if cmd == 'put':
-		sendFile(connSock, splitInput)
-	if cmd == 'get':
-		getFile(connSock, splitInput)
+
+	while len(cmd) < 4:
+		cmd = ' ' + cmd
+	connSock.send(cmd)
+	print 'cmd: ' + cmd + '\n'
+
+	if cmd == ' put':
+		sendFile(splitInput)
+	if cmd == ' get':
+		getFile(splitInput)
+	elif cmd == '  ls':
+		listFiles()
 	elif cmd == 'quit':
 		break
 
